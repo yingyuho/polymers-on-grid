@@ -16,32 +16,39 @@ class Atom:
 	def fromTupleListToList(cls, list): 
 		return [cls.fromTuple(atomT) for atomT in list]
 
-	def rotateCW(self):
-		self.x, self.y = self.y, -self.x
+	def rotateCW(self, x0, y0):
+		self.x, self.y = x0-y0+self.y, y0+x0-self.x
 		
-	def rotateCCW(self):
-		self.x, self.y = -self.y, self.x
+	def rotateCCW(self, x0, y0):
+		self.x, self.y = x0+y0-self.y, y0-x0+self.x
+		
+	def translate(self, dx, dy):
+		self.x += dx
+		self.y += dy
 		
 
 class Molecule:
 	def __init__(self, type, x, y, atomList):
-		self.type, self.x, self.y = type, x, y
+		self.type = type;
+		self.x = self.y = 0
 		self.atomList = []
 		for atom in atomList:
 			self.atomList.append(Atom(atom.type, atom.x, atom.y, self))
+		self.translate(x, y)
 		
 	def __repr__(self):
 		return 'Molecule(x=%r, y=%r, atomList=%r)' % (self.x, self.y, self.atomList)
 	
 	def rotateCW(self): 
-		for atom in self.atomList: atom.rotateCW()
+		for atom in self.atomList: atom.rotateCW(self.x, self.y)
 		
 	def rotateCCW(self): 
-		for atom in self.atomList: atom.rotateCCW()
+		for atom in self.atomList: atom.rotateCCW(self.x, self.y)
 	
-	def translate(self,dx,dy):
+	def translate(self, dx, dy):
 		self.x += dx
 		self.y += dy
+		for atom in self.atomList: atom.translate(dx, dy)
 
 class PDLattice:
 	def __init__(self, dimX, dimY):
@@ -66,13 +73,13 @@ class PDLattice:
 	
 	def raiseMolecule(self, molecule):
 		for atom in molecule.atomList:
-			self.getAtomListAt(molecule.x+atom.x, molecule.y+atom.y).remove(atom)
-			self.getAtomNumListAt(molecule.x+atom.x, molecule.y+atom.y).remove(atom.type)
+			self.getAtomListAt(atom.x, atom.y).remove(atom)
+			self.getAtomNumListAt(atom.x, atom.y).remove(atom.type)
 			
 	def layMolecule(self, molecule):
 		for atom in molecule.atomList:
-			self.getAtomListAt(molecule.x+atom.x, molecule.y+atom.y).append(atom)
-			self.getAtomNumListAt(molecule.x+atom.x, molecule.y+atom.y).append(atom.type)
+			self.getAtomListAt(atom.x, atom.y).append(atom)
+			self.getAtomNumListAt(atom.x, atom.y).append(atom.type)
 			
 	def translateMolecule(self, molecule, dx, dy, p = 0):
 		self.raiseMolecule(molecule)
@@ -119,7 +126,7 @@ class PDLattice:
 	def getEnergy(self, molecule):
 		e = 0;
 		for atom in molecule.atomList:
-			ls = self.getAtomNumListAt(molecule.x+atom.x, molecule.y+atom.y)
+			ls = self.getAtomNumListAt(atom.x, atom.y)
 			for i in range(self.atomTypeNum):
 				e += ls.count(i) * self.energyMatrix[atom.type][i]
 		return e
@@ -283,7 +290,7 @@ for t in range(simTime):
 		elif degProb[t] > 1:
 			for atom in rm.atomList:
 				if atom.type == ATOM_DIMER1 or atom.type == ATOM_DIMER2:
-					lat.addMolecule(Molecule(MOL_MONOMER, rm.x+atom.x, rm.y+atom.y, atomTemp1))
+					lat.addMolecule(Molecule(MOL_MONOMER, atom.x, atom.y, atomTemp1))
 			lat.removeMolecule(rm)
 			moleculeNum += 1
 
