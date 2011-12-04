@@ -18,11 +18,9 @@ class Atom:
 
 	def rotateCW(self):
 		self.x, self.y = self.y, -self.x
-		return self
 		
 	def rotateCCW(self):
 		self.x, self.y = -self.y, self.x
-		return self
 		
 
 class Molecule:
@@ -257,9 +255,6 @@ for t in range(simTime):
 	
 	if rm.type == MOL_MONOMER:
 		if degProb[t] < 0.00:
-#			x1, y1, x2, y2 = rm.x, rm.y+1, rm.x, rm.y-1
-#			lat.addMolecule(Molecule(MOL_MONOMER, x1, y1, atomTemp1))
-#			lat.addMolecule(Molecule(MOL_MONOMER, x2, y2, atomTemp1))
 			lat.removeMolecule(rm)
 			moleculeNum -= 1
 		else:
@@ -299,7 +294,7 @@ for t in range(simTime):
 		lat.addMolecule(Molecule(MOL_MONOMER, newX[t], newY[t], atomTemp1))
 		moleculeNum += 1
 	
-	if (t+1)%(20) == 0:
+	if (t+1)%(500) == 0:
 		fig.set_array(lat.toColorMap())
 		draw()
 	
