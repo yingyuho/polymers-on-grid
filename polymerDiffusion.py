@@ -12,7 +12,7 @@
 
 from numpy import *
 from numpy.random import rand, randint
-from pylab import *
+#from pylab import *
 
 class Atom:
 	def __init__(self, type, x, y, copies=1):
@@ -80,9 +80,12 @@ class PDLattice:
 		"""Return the list of atoms at (x,y)"""
 		return self.atomListMap[x%self.dimX][y%self.dimY]
 
-	def getAtomNumListAt(self, x, y):
-		"""Return the list of atom types at (x,y)"""
-		return self.atomNumListMap[x%self.dimX][y%self.dimY]
+#	def getAtomNumListAt(self, x, y):
+#		"""Return the list of atom types at (x,y)"""
+#		return self.atomNumListMap[x%self.dimX][y%self.dimY]
+		
+	def getAtomNumAt(self, x, y):
+		return self.atomNumMap[x%self.dimX][y%self.dimY]
 		
 	def addMolecule(self, molecule):
 		self.moleculeList.append(molecule)
@@ -98,14 +101,16 @@ class PDLattice:
 		"""Temporarily remove a molecule from the lattice to facilate operations on that molecule"""
 		for atom in molecule.atomList:
 			self.getAtomListAt(atom.x, atom.y).remove(atom)
-			self.getAtomNumListAt(atom.x, atom.y).remove(atom.type)
+			#self.getAtomNumListAt(atom.x, atom.y).remove(atom.type)
+			self.getAtomNumAt(atom.x, atom.y)[atom.type] -= 1
 			self.atomList[atom.type].remove(atom)
 			
 	def layMolecule(self, molecule):
 		"""Put back a raised molecule to the lattice after operations"""
 		for atom in molecule.atomList:
 			self.getAtomListAt(atom.x, atom.y).append(atom)
-			self.getAtomNumListAt(atom.x, atom.y).append(atom.type)
+			#self.getAtomNumListAt(atom.x, atom.y).append(atom.type)
+			self.getAtomNumAt(atom.x, atom.y)[atom.type] += 1
 			self.atomList[atom.type].append(atom)
 			
 	def translateMolecule(self, molecule, dx, dy, p = 0):
@@ -151,6 +156,9 @@ class PDLattice:
 	def setAtomTypeNum(self, atomTypeNum):
 		self.atomTypeNum = atomTypeNum;
 		self.atomList = [[] for x in range(atomTypeNum)]
+		self.atomNumMap = tuple([ tuple([ [0 for a in range(self.atomTypeNum)] \
+									for y in range(self.dimY) ]) \
+							for x in range(self.dimX) ])
 		
 	def setEnergyMatrix(self, energyMatrix):
 		self.energyMatrix = energyMatrix;
@@ -158,9 +166,9 @@ class PDLattice:
 	def getEnergy(self, molecule):
 		e = 0;
 		for atom in molecule.atomList:
-			ls = self.getAtomNumListAt(atom.x, atom.y)
+			ls = self.getAtomNumAt(atom.x, atom.y)
 			for i in range(self.atomTypeNum):
-				e += ls.count(i) * self.energyMatrix[atom.type][i]
+				e += ls[i] * self.energyMatrix[atom.type][i]
 		return e
 		
 	def setColorScale(self, colorScale):
@@ -168,8 +176,8 @@ class PDLattice:
 		
 	def getColorAt(self, x, y):
 		c = zeros(3)
-		for atomType in self.getAtomNumListAt(x, y):
-			c += self.colorScale[atomType]
+		for atomType in range(self.atomTypeNum):
+			c += self.getAtomNumAt(x, y)[atomType] * self.colorScale[atomType]
 		for i in range(3):
 			c[i] = min(1,c[i])
 		return c
@@ -178,14 +186,33 @@ class PDLattice:
 		return [ [ self.getColorAt(x, y) \
 				for y in range(self.dimY) ] \
 			for x in range(self.dimX) ]
+			
+	def getAtomNumberMap(self, x, y):
+		map = zeros(self.atomTypeNum,self.dimX,self.dimY)
+		for x in range(self.dimX):
+			for y in range(self.dimY):
+				for atomType in range(self.atomTypeNum):
+					map[atomType][x][y] = self.getAtomNumAt(x, y)[atomType]
+		return map
 		
 			
-lat = PDLattice(50, 50)
+lat = PDLattice(30, 30)
 monomerNum = 200
 dimer1Num = 0
 dimer2Num = 0
 mNum = monomerNum + dimer1Num + dimer2Num
-simTime = mNum * 50000
+simTime = mNum * 2500
+
+from optparse import OptionParser
+output = True
+parser = OptionParser()
+parser.add_option("-f", "--file", dest="filename", default='temp.txt')
+parser.add_option("-e", type="float", nargs=1, dest="energyScale", default=3.)
+(options, args) = parser.parse_args()
+#parser.add_argument('--out', nargs='1', type=argparse.FileType('w'), default=sys.stdout)
+#parser.add_argument('--ergscale', nargs='1', type=float, default=1.)
+
+file = open(options.filename, 'w')
 
 lat.setColorScale( [[0.20, 0.20, 0.20],\
 					[0.30, 0.00, 0.00],\
@@ -206,12 +233,12 @@ atomTemp3 = map(Atom.fromTuple, [(ATOM_DIMER2,0,-1), (ATOM_DIMER2,-1,0), \
 								 (ATOM_SITE,0,0,2)])
 								 
 lat.setAtomTypeNum(4)
-lat.setEnergyMatrix(5.0 * array([[ 1,  1,  1,  0],\
-								 [ 1,  1,  1,  0],\
-								 [ 1,  1,  1,  0],\
-								 [ 0,  0,  0,  0]]))
+lat.setEnergyMatrix(array([[ 1,  1,  1,  0],\
+						   [ 1,  1,  1,  0],\
+						   [ 1,  1,  1,  0],\
+						   [ 0,  0,  0,  0]]) * options.energyScale)
 									
-lat.bindingEnergy = -1.5;
+lat.bindingEnergy = -1.0 * options.energyScale;
 
 MOL_MONOMER, MOL_DIMER = 0, 1
 
@@ -248,8 +275,9 @@ newProb = rand(simTime)
 
 bindProb = rand(simTime)
 
-fig = imshow(lat.toAtomNumMap(), interpolation='none')
-ioff()
+if output:
+	fig = imshow(lat.toAtomNumMap(), interpolation='none')
+	ioff()
 
 newDimerTemp = range(8)
 newDimerTemp[0] = map(Atom.fromTuple, [(ATOM_DIMER1,0,0), (ATOM_DIMER1,1,0), \
@@ -278,7 +306,7 @@ newDimerTemp[7] = map(Atom.fromTuple, [(ATOM_DIMER2,0,-1), (ATOM_DIMER2,-1,0), \
 									   (ATOM_SITE,0,0,2) ])#,    (ATOM_SITE,0,0) ] )
 reactDirMap = [[1,0],[-1,0],[0,1],  [0,-1],\
 			   [1,1],[-1,1],[-1,-1],[1,-1]]
-
+			   
 for t in range(simTime):
 
 	# Translate one molecule
@@ -313,9 +341,9 @@ for t in range(simTime):
 		x2 = ra.x + reactDirMap[rd][0]
 		y2 = ra.y + reactDirMap[rd][1]
 	
-		anl = lat.getAtomNumListAt(x2, y2)
+		anl = lat.getAtomNumAt(x2, y2)
 		
-		if 0 < anl.count(ATOM_MONOMER):
+		if 0 < anl[ATOM_MONOMER]:
 			for ra2 in lat.getAtomListAt(x2, y2):
 				if ra2.type == ATOM_MONOMER:
 					# I-shaped dimer
@@ -374,7 +402,7 @@ for t in range(simTime):
 			lat.removeMolecule(rm)
 			moleculeNum -= 1
 		# Degradation of dimer into monomers
-		elif degProb[t] > 0.995:
+		elif degProb[t] > 0.99:
 			for atom in rm.atomList:
 				if atom.type != ATOM_SITE:
 					lat.addMolecule(Molecule(MOL_MONOMER, atom.x, atom.y, atomTemp1))
@@ -405,6 +433,13 @@ for t in range(simTime):
 		lat.addMolecule(Molecule(MOL_MONOMER, newX[t], newY[t], atomTemp1))
 	
 	# Update the animation per ## moves
-	if (t+1)%(50) == 0:
-		fig.set_array(lat.toColorMap())
-		draw()
+	if (t+1)%(200) == 0:
+		if output:
+			fig.set_array(lat.toColorMap())
+			draw()
+			print(len(lat.atomList[ATOM_MONOMER])),
+			print(len(lat.atomList[ATOM_DIMER1])),
+			print(len(lat.atomList[ATOM_DIMER2]))
+		file.write('{} {} {}\n'.format(len(lat.atomList[ATOM_MONOMER]), len(lat.atomList[ATOM_DIMER1]), len(lat.atomList[ATOM_DIMER2])))
+
+file.close()
