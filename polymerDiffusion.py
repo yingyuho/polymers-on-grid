@@ -76,6 +76,9 @@ class PDLattice:
 		self.atomList = [];
 		self.moleculeNum = 0;
 		
+	def getDataXY(self, var, x, y):
+		return var[x%self.dimX][y%self.dimY]
+		
 	def getAtomListAt(self, x, y):
 		"""Return the list of atoms at (x,y)"""
 		return self.atomListMap[x%self.dimX][y%self.dimY]
@@ -156,6 +159,7 @@ class PDLattice:
 	def setAtomTypeNum(self, atomTypeNum):
 		self.atomTypeNum = atomTypeNum;
 		self.atomList = [[] for x in range(atomTypeNum)]
+		#self.atomNumMap = zeros((self.atomTypeNum, self.dimX, self.dimY))
 		self.atomNumMap = tuple([ tuple([ [0 for a in range(self.atomTypeNum)] \
 									for y in range(self.dimY) ]) \
 							for x in range(self.dimX) ])
@@ -187,21 +191,22 @@ class PDLattice:
 				for y in range(self.dimY) ] \
 			for x in range(self.dimX) ]
 			
-	def getAtomNumberMap(self, x, y):
-		map = zeros(self.atomTypeNum,self.dimX,self.dimY)
+	def getAtomNumberMap(self):
+		amap = zeros((self.atomTypeNum,self.dimX,self.dimY))
 		for x in range(self.dimX):
 			for y in range(self.dimY):
 				for atomType in range(self.atomTypeNum):
-					map[atomType][x][y] = self.getAtomNumAt(x, y)[atomType]
-		return map
+					amap[atomType][x][y] = self.getAtomNumAt(x, y)[atomType]
+		return amap
 		
 			
-lat = PDLattice(30, 30)
+lat = PDLattice(50, 50)
 monomerNum = 200
 dimer1Num = 0
 dimer2Num = 0
 mNum = monomerNum + dimer1Num + dimer2Num
 simTime = mNum * 2500
+moleculeNum = mNum
 
 from optparse import OptionParser
 output = True
@@ -239,6 +244,8 @@ lat.setEnergyMatrix(array([[ 1,  1,  1,  0],\
 						   [ 0,  0,  0,  0]]) * options.energyScale)
 									
 lat.bindingEnergy = -1.0 * options.energyScale;
+
+print(lat.bindingEnergy)
 
 MOL_MONOMER, MOL_DIMER = 0, 1
 
@@ -395,7 +402,7 @@ for t in range(simTime):
 						
 	elif (rm.type == MOL_DIMER):
 		# Death of dimer
-		if degProb[t] < 0.000:
+		if degProb[t] < 0.002:
 			for atom in rm.atomList:
 				if atom.type == ATOM_MONOMER:
 					lat.addMolecule(Molecule(MOL_MONOMER, atom.x, atom.y, atomTemp1))
@@ -427,7 +434,7 @@ for t in range(simTime):
 						lat.addMolecule(Molecule(MOL_MONOMER, atom.x, atom.y, atomTemp1))
 		
 	# Add monomers randomly to the system
-	if newProb[t] < 0*0.15/lat.moleculeNum:
+	if newProb[t] < 0.05/lat.moleculeNum:
 		newX[t] = randint(floor(lat.dimX*0.0), floor(lat.dimX*1.0))
 		newY[t] = randint(floor(lat.dimY*0.0), floor(lat.dimY*1.0))
 		lat.addMolecule(Molecule(MOL_MONOMER, newX[t], newY[t], atomTemp1))
@@ -437,9 +444,10 @@ for t in range(simTime):
 		if output:
 			fig.set_array(lat.toColorMap())
 			draw()
-			print(len(lat.atomList[ATOM_MONOMER])),
-			print(len(lat.atomList[ATOM_DIMER1])),
-			print(len(lat.atomList[ATOM_DIMER2]))
+#			print(len(lat.atomList[ATOM_MONOMER])),
+#			print(len(lat.atomList[ATOM_DIMER1])),
+#			print(len(lat.atomList[ATOM_DIMER2]))
+#			print(repr(lat.getAtomNumberMap()))
 		file.write('{} {} {}\n'.format(len(lat.atomList[ATOM_MONOMER]), len(lat.atomList[ATOM_DIMER1]), len(lat.atomList[ATOM_DIMER2])))
 
 file.close()
