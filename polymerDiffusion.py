@@ -76,8 +76,14 @@ class PDLattice:
 		self.atomList = [];
 		self.moleculeNum = 0;
 		
-	def getDataXY(self, var, x, y):
-		return var[x%self.dimX][y%self.dimY]
+	def getDataXY(self, mat, x, y):
+		return mat[x%self.dimX][y%self.dimY]
+
+	def setDataXY(self, mat, x, y, value):
+		mat[x%self.dimX][y%self.dimY] = value
+		
+	def incDataXY(self, mat, x, y, inc):
+		mat[x%self.dimX][y%self.dimY] += inc
 		
 	def getAtomListAt(self, x, y):
 		"""Return the list of atoms at (x,y)"""
@@ -105,7 +111,8 @@ class PDLattice:
 		for atom in molecule.atomList:
 			self.getAtomListAt(atom.x, atom.y).remove(atom)
 			#self.getAtomNumListAt(atom.x, atom.y).remove(atom.type)
-			self.getAtomNumAt(atom.x, atom.y)[atom.type] -= 1
+			#self.getAtomNumAt(atom.x, atom.y)[atom.type] -= 1
+			self.incDataXY(self.atomNumMap[atom.type], atom.x, atom.y, -1)
 			self.atomList[atom.type].remove(atom)
 			
 	def layMolecule(self, molecule):
@@ -113,7 +120,8 @@ class PDLattice:
 		for atom in molecule.atomList:
 			self.getAtomListAt(atom.x, atom.y).append(atom)
 			#self.getAtomNumListAt(atom.x, atom.y).append(atom.type)
-			self.getAtomNumAt(atom.x, atom.y)[atom.type] += 1
+			#self.getAtomNumAt(atom.x, atom.y)[atom.type] += 1
+			self.incDataXY(self.atomNumMap[atom.type], atom.x, atom.y, 1)
 			self.atomList[atom.type].append(atom)
 			
 	def translateMolecule(self, molecule, dx, dy, p = 0):
@@ -159,10 +167,10 @@ class PDLattice:
 	def setAtomTypeNum(self, atomTypeNum):
 		self.atomTypeNum = atomTypeNum;
 		self.atomList = [[] for x in range(atomTypeNum)]
-		#self.atomNumMap = zeros((self.atomTypeNum, self.dimX, self.dimY))
-		self.atomNumMap = tuple([ tuple([ [0 for a in range(self.atomTypeNum)] \
-									for y in range(self.dimY) ]) \
-							for x in range(self.dimX) ])
+		self.atomNumMap = zeros((self.atomTypeNum, self.dimX, self.dimY))
+		#self.atomNumMap = tuple([ tuple([ [0 for a in range(self.atomTypeNum)] \
+		#							for y in range(self.dimY) ]) \
+		#					for x in range(self.dimX) ])
 		
 	def setEnergyMatrix(self, energyMatrix):
 		self.energyMatrix = energyMatrix;
@@ -170,9 +178,9 @@ class PDLattice:
 	def getEnergy(self, molecule):
 		e = 0;
 		for atom in molecule.atomList:
-			ls = self.getAtomNumAt(atom.x, atom.y)
+			#ls = self.getAtomNumAt(atom.x, atom.y)
 			for i in range(self.atomTypeNum):
-				e += ls[i] * self.energyMatrix[atom.type][i]
+				e += self.getDataXY(self.atomNumMap[i], atom.x, atom.y) * self.energyMatrix[atom.type][i]
 		return e
 		
 	def setColorScale(self, colorScale):
@@ -181,7 +189,8 @@ class PDLattice:
 	def getColorAt(self, x, y):
 		c = zeros(3)
 		for atomType in range(self.atomTypeNum):
-			c += self.getAtomNumAt(x, y)[atomType] * self.colorScale[atomType]
+			#c += self.getAtomNumAt(x, y)[atomType] * self.colorScale[atomType]
+			c += self.getDataXY(self.atomNumMap[atomType], x, y) * self.colorScale[atomType]
 		for i in range(3):
 			c[i] = min(1,c[i])
 		return c
@@ -196,7 +205,7 @@ class PDLattice:
 		for x in range(self.dimX):
 			for y in range(self.dimY):
 				for atomType in range(self.atomTypeNum):
-					amap[atomType][x][y] = self.getAtomNumAt(x, y)[atomType]
+					amap[atomType][x][y] = self.getDataXY(self.atomNumMap[atomType], x, y)
 		return amap
 		
 			
@@ -348,9 +357,9 @@ for t in range(simTime):
 		x2 = ra.x + reactDirMap[rd][0]
 		y2 = ra.y + reactDirMap[rd][1]
 	
-		anl = lat.getAtomNumAt(x2, y2)
+		#anl = lat.getAtomNumAt(x2, y2)
 		
-		if 0 < anl[ATOM_MONOMER]:
+		if 0 < lat.getDataXY(lat.atomNumMap[ATOM_MONOMER], x2, y2):
 			for ra2 in lat.getAtomListAt(x2, y2):
 				if ra2.type == ATOM_MONOMER:
 					# I-shaped dimer
