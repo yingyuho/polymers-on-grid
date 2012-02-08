@@ -159,10 +159,10 @@ class PDLattice:
 	def rotateMoleculeCCWByIndex(self, i, p = 0):
 		self.rotateMoleculeCCW(self.moleculeList[i], p)
 
-	def toAtomNumMap(self):
-		return [ [ len(self.atomListMap[x][y]) \
-				for y in range(self.dimY) ] \
-			for x in range(self.dimX) ]
+	#def toAtomNumMap(self):
+	#	return [ [ len(self.atomListMap[x][y]) \
+	#			for y in range(self.dimY) ] \
+	#		for x in range(self.dimX) ]
 			
 	def setAtomTypeNum(self, atomTypeNum):
 		self.atomTypeNum = atomTypeNum;
@@ -292,7 +292,7 @@ newProb = rand(simTime)
 bindProb = rand(simTime)
 
 if output:
-	fig = imshow(lat.toAtomNumMap(), interpolation='none')
+	fig = imshow(lat.toColorMap(), interpolation='none')
 	ioff()
 
 newDimerTemp = range(8)
