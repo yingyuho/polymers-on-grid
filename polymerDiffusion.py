@@ -158,19 +158,11 @@ class PDLattice:
 
 	def rotateMoleculeCCWByIndex(self, i, p = 0):
 		self.rotateMoleculeCCW(self.moleculeList[i], p)
-
-	#def toAtomNumMap(self):
-	#	return [ [ len(self.atomListMap[x][y]) \
-	#			for y in range(self.dimY) ] \
-	#		for x in range(self.dimX) ]
 			
 	def setAtomTypeNum(self, atomTypeNum):
 		self.atomTypeNum = atomTypeNum;
 		self.atomList = [[] for x in range(atomTypeNum)]
 		self.atomNumMap = zeros((self.atomTypeNum, self.dimX, self.dimY))
-		#self.atomNumMap = tuple([ tuple([ [0 for a in range(self.atomTypeNum)] \
-		#							for y in range(self.dimY) ]) \
-		#					for x in range(self.dimX) ])
 		
 	def setEnergyMatrix(self, energyMatrix):
 		self.energyMatrix = energyMatrix;
@@ -186,27 +178,8 @@ class PDLattice:
 	def setColorScale(self, colorScale):
 		self.colorScale = array(colorScale)
 		
-	def getColorAt(self, x, y):
-		c = zeros(3)
-		for atomType in range(self.atomTypeNum):
-			#c += self.getAtomNumAt(x, y)[atomType] * self.colorScale[atomType]
-			c += self.getDataXY(self.atomNumMap[atomType], x, y) * self.colorScale[atomType]
-		for i in range(3):
-			c[i] = min(1,c[i])
-		return c
-		
 	def toColorMap(self):
-		return [ [ self.getColorAt(x, y) \
-				for y in range(self.dimY) ] \
-			for x in range(self.dimX) ]
-			
-	def getAtomNumberMap(self):
-		amap = zeros((self.atomTypeNum,self.dimX,self.dimY))
-		for x in range(self.dimX):
-			for y in range(self.dimY):
-				for atomType in range(self.atomTypeNum):
-					amap[atomType][x][y] = self.getDataXY(self.atomNumMap[atomType], x, y)
-		return amap
+		return clip(tensordot(self.atomNumMap, self.colorScale, axes=([0,0])), 0, 1)
 		
 			
 lat = PDLattice(50, 50)
