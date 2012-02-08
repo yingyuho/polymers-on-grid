@@ -162,7 +162,7 @@ class PDLattice:
 	def setAtomTypeNum(self, atomTypeNum):
 		self.atomTypeNum = atomTypeNum;
 		self.atomList = [[] for x in range(atomTypeNum)]
-		self.atomNumMap = zeros((self.atomTypeNum, self.dimX, self.dimY))
+		self.atomNumMap = zeros((self.atomTypeNum, self.dimX, self.dimY), int)
 		
 	def setEnergyMatrix(self, energyMatrix):
 		self.energyMatrix = energyMatrix;
@@ -182,8 +182,8 @@ class PDLattice:
 		return clip(tensordot(self.atomNumMap, self.colorScale, axes=([0,0])), 0, 1)
 		
 			
-lat = PDLattice(50, 50)
-monomerNum = 200
+lat = PDLattice(64,64)
+monomerNum = 100
 dimer1Num = 0
 dimer2Num = 0
 mNum = monomerNum + dimer1Num + dimer2Num
@@ -194,7 +194,7 @@ from optparse import OptionParser
 output = True
 parser = OptionParser()
 parser.add_option("-f", "--file", dest="filename", default='temp.txt')
-parser.add_option("-e", type="float", nargs=1, dest="energyScale", default=3.)
+parser.add_option("-e", type="float", nargs=1, dest="energyScale", default=2.)
 (options, args) = parser.parse_args()
 #parser.add_argument('--out', nargs='1', type=argparse.FileType('w'), default=sys.stdout)
 #parser.add_argument('--ergscale', nargs='1', type=float, default=1.)
@@ -226,8 +226,6 @@ lat.setEnergyMatrix(array([[ 1,  1,  1,  0],\
 						   [ 0,  0,  0,  0]]) * options.energyScale)
 									
 lat.bindingEnergy = -1.0 * options.energyScale;
-
-print(lat.bindingEnergy)
 
 MOL_MONOMER, MOL_DIMER = 0, 1
 
@@ -430,6 +428,19 @@ for t in range(simTime):
 #			print(len(lat.atomList[ATOM_DIMER1])),
 #			print(len(lat.atomList[ATOM_DIMER2]))
 #			print(repr(lat.getAtomNumberMap()))
-		file.write('{} {} {}\n'.format(len(lat.atomList[ATOM_MONOMER]), len(lat.atomList[ATOM_DIMER1]), len(lat.atomList[ATOM_DIMER2])))
+		monomerNumMapFT = fft2(lat.atomNumMap[ATOM_DIMER2])
+		corrFunction = int32(real(ifft2( monomerNumMapFT * conj(monomerNumMapFT) )).round())
+		for row in corrFunction:
+			for col in row:
+				file.write('{} '.format(col))
+			file.write('\n')
+		file.write('\n')
+		
+		#for row in corrFunction:
+		#	for col in row:
+		#		print('{}'.format(col)),
+		#	print '\n',
+		#print '\n'
+		#file.write('{} {} {}\n'.format(len(lat.atomList[ATOM_MONOMER]), len(lat.atomList[ATOM_DIMER1]), len(lat.atomList[ATOM_DIMER2])))
 
 file.close()
