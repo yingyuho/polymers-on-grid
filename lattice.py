@@ -1,3 +1,6 @@
+from numpy.core.multiarray import zeros
+from math import exp
+
 class Atom:
 	def __init__(self, type, x, y, copies=1):
 		self.type, self.x, self.y, self.copies = type, x, y, copies
@@ -161,9 +164,3 @@ class Lattice:
 			for i in range(self.atomTypeNum):
 				e += self.getDataXY(self.atomNumMap[i], atom.x, atom.y) * self.energyMatrix[atom.type][i]
 		return e
-		
-	def setColorScale(self, colorScale):
-		self.colorScale = array(colorScale)
-		
-	def toColorMap(self):
-		return clip(tensordot(self.atomNumMap, self.colorScale, axes=([0,0])), 0, 1)
