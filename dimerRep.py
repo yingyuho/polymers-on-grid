@@ -147,6 +147,7 @@ class Experiment:
 			fileFlag = False
 		else:
 			fileFlag = True
+			file = open(outputFileName, 'w')
 			
 		if display:
 			fig = figure()
@@ -283,10 +284,6 @@ class Experiment:
 				if display:
 					img.set_array(self.colorMap(lat))
 					draw()
-		#			print(len(lat.atomList[ATOM_MONOMER])),
-		#			print(len(lat.atomList[ATOM_DIMER1])),
-		#			print(len(lat.atomList[ATOM_DIMER2]))
-		#			print(repr(lat.getAtomNumberMap()))
 				#monomerNumMapFT = fft2(lat.atomNumMap[ATOM_DIMER2])
 				#corrFunction = int32(real(ifft2( monomerNumMapFT * conj(monomerNumMapFT) )).round())
 				#for row in corrFunction:
@@ -300,8 +297,21 @@ class Experiment:
 				#		print('{}'.format(col)),
 				#	print '\n',
 				#print '\n'
-				#file.write('{} {} {}\n'.format(len(lat.atomList[ATOM_MONOMER]), len(lat.atomList[ATOM_DIMER1]), len(lat.atomList[ATOM_DIMER2])))
-			
+				if fileFlag:
+					for atomType in lat.atomNumMap:
+						for row in atomType:
+							for col in row:
+								file.write('{} '.format(col))
+							file.write('\n')
+						file.write('\n')
+					file.write('\n')
+					#str = '{} {} {}\n'.format(\
+					#	len(lat.atomList[ATOM_MONOMER]), \
+					#	len(lat.atomList[ATOM_DIMER1]), \
+					#	len(lat.atomList[ATOM_DIMER2]))
+					#file.write(str)
+					#print(str),
+		file.close()
 	
 
 if __name__ == '__main__':
@@ -320,11 +330,10 @@ if __name__ == '__main__':
 	parser.add_argument('--nd2', dest='nd2', action='store', type=int, default=0)
 	opt = parser.parse_args()
 	
-	if	opt.outputFileName != None:
-		fileFlag = True
-		file = open(opt.outputFileName, 'w')
-	else:
-		fileFlag = False
+#	if	opt.outputFileName != None:
+#		fileFlag = True
+#	else:
+#		fileFlag = False
 		
 	if opt.display == True:
 		from matplotlib.pyplot import *
@@ -335,18 +344,6 @@ if __name__ == '__main__':
 		monomerAppear=opt.ma, monomerVanish=opt.mv, dimerVanish=opt.dv, dimerBreak=opt.db, \
 		monomerInitNum=opt.nm, dimer1InitNum=opt.nd1, dimer2InitNum=opt.nd2)
 		
-	experiment.run(simulationTime=100*5000, display=opt.display, outputFileName=None)
-
-		
-#lat = Lattice(32,32)
-#monomerNum = 100
-#dimer1Num = 0
-#dimer2Num = 0
-#mNum = monomerNum + dimer1Num + dimer2Num
-#simTime = mNum * 5000
-#moleculeNum = mNum
-
-#if output:
-#	fig = imshow(lat.toColorMap(), interpolation='none')
-#	ioff()
-#file.close()
+	experiment.run(simulationTime=100*50, display=opt.display, outputFileName=opt.outputFileName)
+	
+	
