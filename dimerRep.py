@@ -128,7 +128,7 @@ class Experiment:
 	def colorMap(self, lattice):
 		return clip(tensordot(lattice.atomNumMap, self.colorScale, axes=([0,0])), 0, 1)
 		
-	def run(self, simulationTime, display, outputFileName):
+	def run(self, simulationTime, outputPeriod, display, outputFileName):
 		simTime		= simulationTime
 		#display		= display
 		#outputFileName	= outputFileName
@@ -181,7 +181,7 @@ class Experiment:
 			tMoveMol[t] = randint(0, lat.moleculeNum)
 			tMoveDir[t] = randint(0, 2)
 			tMoveDis[t] = randint(0, 2) * 2 - 1
-			tMoveProb[t] = rand()
+			tMoveProb[t] = rand()*9
 
 			dx = tMoveDis[t] * tMoveDir[t]
 			dy = tMoveDis[t] * (1 - tMoveDir[t])
@@ -190,7 +190,7 @@ class Experiment:
 			# Rotate one molecule
 			rMoveDir[t] = randint(0, 2)
 			rMoveMol[t] = randint(0, lat.moleculeNum)
-			rMoveProb[t] = rand()
+			rMoveProb[t] = rand()*9
 			
 			if rMoveDir[t] == 0:
 				lat.rotateMoleculeCWByIndex(rMoveMol[t], rMoveProb[t])
@@ -280,7 +280,7 @@ class Experiment:
 				lat.addMolecule(Molecule(MOL_MONOMER, newX[t], newY[t], moleculeTemp1))
 			
 			# Update the animation per ## moves
-			if (t+1)%(200) == 0:
+			if (t+1)%(outputPeriod) == 0:
 				if display:
 					img.set_array(self.colorMap(lat))
 					draw()
@@ -311,7 +311,8 @@ class Experiment:
 					#	len(lat.atomList[ATOM_DIMER2]))
 					#file.write(str)
 					#print(str),
-		file.close()
+		if fileFlag:
+			file.close()
 	
 
 if __name__ == '__main__':
@@ -321,13 +322,16 @@ if __name__ == '__main__':
 	parser.add_argument('-s', '--size', dest='size', action='store', type=int, default=32)
 	parser.add_argument('-o', '--out', dest="outputFileName", action='store')
 	parser.add_argument('-e', '--energy', dest="energyScale", action='store', type=float, default=1.)
-	parser.add_argument('--ma', dest="ma", action='store', type=float, default=0)
-	parser.add_argument('--mv', dest="mv", action='store', type=float, default=0)
-	parser.add_argument('--dv', dest="dv", action='store', type=float, default=0)
-	parser.add_argument('--db', dest="db", action='store', type=float, default=0)
-	parser.add_argument('--nm', dest='nm', action='store', type=int, default=0)
-	parser.add_argument('--nd1', dest='nd1', action='store', type=int, default=0)
-	parser.add_argument('--nd2', dest='nd2', action='store', type=int, default=0)
+	parser.add_argument('-t', '--time', dest="simTime", action='store', type=int, default=1000)
+	parser.add_argument('-u', '--period', dest="outputPeriod", action='store', type=int, default=200)
+	parser.add_argument('-v', '--ma', dest="ma", action='store', type=float, default=0.)
+	parser.add_argument('-i', '--mv', dest="mv", action='store', type=float, default=0.)
+	parser.add_argument('-j', '--dv', dest="dv", action='store', type=float, default=0.)
+	parser.add_argument('-k', '--db', dest="db", action='store', type=float, default=0.)
+	parser.add_argument('-l', '--nm', dest='nm', action='store', type=int, default=0)
+	parser.add_argument('-m', '--nd1', dest='nd1', action='store', type=int, default=0)
+	parser.add_argument('-n', '--nd2', dest='nd2', action='store', type=int, default=0)
+	
 	opt = parser.parse_args()
 	
 #	if	opt.outputFileName != None:
@@ -344,6 +348,6 @@ if __name__ == '__main__':
 		monomerAppear=opt.ma, monomerVanish=opt.mv, dimerVanish=opt.dv, dimerBreak=opt.db, \
 		monomerInitNum=opt.nm, dimer1InitNum=opt.nd1, dimer2InitNum=opt.nd2)
 		
-	experiment.run(simulationTime=100*50, display=opt.display, outputFileName=opt.outputFileName)
+	experiment.run(simulationTime=opt.simTime, outputPeriod=opt.outputPeriod, display=opt.display, outputFileName=opt.outputFileName)
 	
 	

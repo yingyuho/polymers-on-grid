@@ -128,6 +128,7 @@ class Lattice:
 				
 	def rotateMoleculeCW(self, molecule, p = 0):
 	# Put doc
+		if p > 1: pass
 		self.raiseMolecule(molecule)
 		e1 = self.getEnergy(molecule)
 		molecule.rotateCW()
@@ -139,6 +140,7 @@ class Lattice:
 		self.rotateMoleculeCW(self.moleculeList[i], p)
 		
 	def rotateMoleculeCCW(self, molecule, p = 0):
+		if p > 1: pass
 		self.raiseMolecule(molecule)
 		e1 = self.getEnergy(molecule)
 		molecule.rotateCCW()

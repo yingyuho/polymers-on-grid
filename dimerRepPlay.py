@@ -51,7 +51,7 @@ def update(*args):
 	else:
 		return []
 
-ani = animation.FuncAnimation(fig, update, interval=250, blit=True, repeat=False)
+ani = animation.FuncAnimation(fig, update, interval=200, blit=True, repeat=False)
 plt.show()
 
 
