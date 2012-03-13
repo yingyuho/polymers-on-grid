@@ -57,6 +57,26 @@ class Molecule:
 		for atom in self.atomList: atom.translate(dx, dy)
 
 class Lattice:
+	class QList:
+		def __init__(self):
+			self.list = []
+			self.n = 0
+		def __len__(self):
+			return self.n
+		def __getitem__(self,i):
+			return self.list[i]
+		def append(self, obj):
+			self.list.append(obj)
+			obj.__qid = self.n
+			self.n += 1
+		def remove(self, obj):
+			self.n -= 1
+			if obj.__qid != self.n:
+				self.list[obj.__qid] = self.list.pop()
+				self.list[obj.__qid].__qid = obj.__qid
+			else:
+				self.list.pop()
+
 	def __init__(self, dimX, dimY):
 		self.dimX, self.dimY = dimX, dimY
 		self.atomListMap = tuple([ tuple([ [] for y in range(dimY) ]) for x in range(dimX) ])
@@ -159,7 +179,8 @@ class Lattice:
 			
 	def setAtomTypeNum(self, atomTypeNum):
 		self.atomTypeNum = atomTypeNum;
-		self.atomList = [[] for x in range(atomTypeNum)]
+		#self.atomList = [[] for x in range(atomTypeNum)]
+		self.atomList = [self.QList() for x in range(atomTypeNum)]
 		self.atomNumMap = zeros((self.atomTypeNum, self.dimX, self.dimY), int)
 		
 	def setEnergyMatrix(self, energyMatrix):
