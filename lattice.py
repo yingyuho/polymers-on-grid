@@ -95,58 +95,64 @@ class Lattice:
 		self.moleculeList.remove(molecule)
 		self.moleculeNum -= 1;
 	
-	def raiseMolecule(self, molecule):
+	def raiseMolecule(self, molecule, perm = True):
 		"""Temporarily remove a molecule from the lattice to facilate operations on that molecule"""
-		for atom in molecule.atomList:
-			self.getAtomListAt(atom.x, atom.y).remove(atom)
-			#self.getAtomNumListAt(atom.x, atom.y).remove(atom.type)
-			#self.getAtomNumAt(atom.x, atom.y)[atom.type] -= 1
-			self.incDataXY(self.atomNumMap[atom.type], atom.x, atom.y, -1)
-			self.atomList[atom.type].remove(atom)
+		if perm:
+			for atom in molecule.atomList:
+				self.getAtomListAt(atom.x, atom.y).remove(atom)
+				self.incDataXY(self.atomNumMap[atom.type], atom.x, atom.y, -1)
+				self.atomList[atom.type].remove(atom)
+		else:
+			for atom in molecule.atomList:
+				self.getAtomListAt(atom.x, atom.y).remove(atom)
+				self.incDataXY(self.atomNumMap[atom.type], atom.x, atom.y, -1)
 			
-	def layMolecule(self, molecule):
+	def layMolecule(self, molecule, perm = True):
 		"""Put back a raised molecule to the lattice after operations"""
-		for atom in molecule.atomList:
-			self.getAtomListAt(atom.x, atom.y).append(atom)
-			#self.getAtomNumListAt(atom.x, atom.y).append(atom.type)
-			#self.getAtomNumAt(atom.x, atom.y)[atom.type] += 1
-			self.incDataXY(self.atomNumMap[atom.type], atom.x, atom.y, 1)
-			self.atomList[atom.type].append(atom)
+		if perm:
+			for atom in molecule.atomList:
+				self.getAtomListAt(atom.x, atom.y).append(atom)
+				self.incDataXY(self.atomNumMap[atom.type], atom.x, atom.y, 1)
+				self.atomList[atom.type].append(atom)
+		else:
+			for atom in molecule.atomList:
+				self.getAtomListAt(atom.x, atom.y).append(atom)
+				self.incDataXY(self.atomNumMap[atom.type], atom.x, atom.y, 1)
 			
 	def translateMolecule(self, molecule, dx, dy, p = 0):
 	# Put doc
-		if p > 1: pass
-		self.raiseMolecule(molecule)
+		if p > 1: return
+		self.raiseMolecule(molecule, perm = False)
 		e1 = self.getEnergy(molecule)
 		molecule.translate(dx, dy)
 		e2 = self.getEnergy(molecule)		
 		if p > min(1,exp(e1-e2)): molecule.translate(-dx, -dy)
-		self.layMolecule(molecule)
+		self.layMolecule(molecule, perm = False)
 				
 	def translateMoleculeByIndex(self, i, dx, dy, p = 0):
 		self.translateMolecule(self.moleculeList[i], dx, dy, p)
 				
 	def rotateMoleculeCW(self, molecule, p = 0):
 	# Put doc
-		if p > 1: pass
-		self.raiseMolecule(molecule)
+		if p > 1: return
+		self.raiseMolecule(molecule, perm = False)
 		e1 = self.getEnergy(molecule)
 		molecule.rotateCW()
 		e2 = self.getEnergy(molecule)
 		if p > min(1,exp(e1-e2)): molecule.rotateCCW()
-		self.layMolecule(molecule)
+		self.layMolecule(molecule, perm = False)
 
 	def rotateMoleculeCWByIndex(self, i, p = 0):
 		self.rotateMoleculeCW(self.moleculeList[i], p)
 		
 	def rotateMoleculeCCW(self, molecule, p = 0):
-		if p > 1: pass
-		self.raiseMolecule(molecule)
+		if p > 1: return
+		self.raiseMolecule(molecule, perm = False)
 		e1 = self.getEnergy(molecule)
 		molecule.rotateCCW()
 		e2 = self.getEnergy(molecule)
 		if p > min(1,exp(e1-e2)): molecule.rotateCW()
-		self.layMolecule(molecule)
+		self.layMolecule(molecule, perm = False)
 
 	def rotateMoleculeCCWByIndex(self, i, p = 0):
 		self.rotateMoleculeCCW(self.moleculeList[i], p)

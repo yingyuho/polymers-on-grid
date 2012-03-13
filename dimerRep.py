@@ -192,10 +192,11 @@ class Experiment:
 			rMoveMol[t] = randint(0, lat.moleculeNum)
 			rMoveProb[t] = rand()*9
 			
-			if rMoveDir[t] == 0:
-				lat.rotateMoleculeCWByIndex(rMoveMol[t], rMoveProb[t])
-			else:
-				lat.rotateMoleculeCCWByIndex(rMoveMol[t], rMoveProb[t])
+			if lat.moleculeList[rMoveMol[t]] != MOL_MONOMER:
+				if rMoveDir[t] == 0:
+					lat.rotateMoleculeCWByIndex(rMoveMol[t], rMoveProb[t])
+				else:
+					lat.rotateMoleculeCCWByIndex(rMoveMol[t], rMoveProb[t])
 			
 			# Pick one monomer atom and see if a dimer can be formed
 			molN = len(lat.atomList[ATOM_MONOMER]) + len(lat.atomList[ATOM_DIMER1])/2 + len(lat.atomList[ATOM_DIMER2])/2;
@@ -248,7 +249,7 @@ class Experiment:
 							lat.addMolecule(Molecule(MOL_MONOMER, atom.x, atom.y, moleculeTemp1))
 					lat.removeMolecule(rm)
 					moleculeNum -= 1
-				# Degradation of dimer into    monomers
+				# Degradation of dimer into monomers
 				elif degProb[t] > (1-self.dimerBreak):
 					for atom in rm.atomList:
 						if atom.type != ATOM_SITE:
@@ -272,7 +273,7 @@ class Experiment:
 								atom.type = ATOM_SITE
 								lat.layMolecule(rm)
 								lat.addMolecule(Molecule(MOL_MONOMER, atom.x, atom.y, moleculeTemp1))
-				
+			
 			# Add monomers randomly to the system
 			if newProb[t] < self.monomerAppear/lat.moleculeNum:
 				newX[t] = randint(floor(lat.dimX*0.0), floor(lat.dimX*1.0))
@@ -284,19 +285,6 @@ class Experiment:
 				if display:
 					img.set_array(self.colorMap(lat))
 					draw()
-				#monomerNumMapFT = fft2(lat.atomNumMap[ATOM_DIMER2])
-				#corrFunction = int32(real(ifft2( monomerNumMapFT * conj(monomerNumMapFT) )).round())
-				#for row in corrFunction:
-				#	for col in row:
-				#		file.write('{} '.format(col))
-				#	file.write('\n')
-				#file.write('\n')
-				
-				#for row in corrFunction:
-				#	for col in row:
-				#		print('{}'.format(col)),
-				#	print '\n',
-				#print '\n'
 				if fileFlag:
 					for atomType in lat.atomNumMap:
 						for row in atomType:
@@ -305,12 +293,6 @@ class Experiment:
 							file.write('\n')
 						file.write('\n')
 					file.write('\n')
-					#str = '{} {} {}\n'.format(\
-					#	len(lat.atomList[ATOM_MONOMER]), \
-					#	len(lat.atomList[ATOM_DIMER1]), \
-					#	len(lat.atomList[ATOM_DIMER2]))
-					#file.write(str)
-					#print(str),
 		if fileFlag:
 			file.close()
 	
@@ -333,12 +315,7 @@ if __name__ == '__main__':
 	parser.add_argument('-n', '--nd2', dest='nd2', action='store', type=int, default=0)
 	
 	opt = parser.parse_args()
-	
-#	if	opt.outputFileName != None:
-#		fileFlag = True
-#	else:
-#		fileFlag = False
-		
+			
 	if opt.display == True:
 		from matplotlib.pyplot import *
 		import matplotlib.animation as animation
