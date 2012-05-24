@@ -19,7 +19,7 @@ from lattice import Atom, Molecule, Lattice
 class Experiment:
 
 	ATOM_MONOMER, ATOM_DIMER1, ATOM_DIMER2, ATOM_SITE = 0, 1, 2, 3
-	MOL_MONOMER, MOL_DIMER = 0, 1
+	MOL_MONOMER, MOL_DIMER1, MOL_DIMER2 = 0, 1, 2
 	
 	# Monomer Temp
 	moleculeTemp1 = map(Atom.fromTuple, [\
@@ -36,14 +36,15 @@ class Experiment:
 		(ATOM_SITE,		0,	0,	2)])
 	
 	def __init__(\
-			self, dimX, dimY, energyScale, \
+			self, dimX, dimY, energyScale, rate, \
 			monomerAppear, monomerVanish, dimerVanish, dimerBreak, \
 			monomerInitNum, dimer1InitNum, dimer2InitNum):
 			
-		MOL_MONOMER, MOL_DIMER =  self.MOL_MONOMER,  self.MOL_DIMER
+		MOL_MONOMER, MOL_DIMER1, MOL_DIMER2 =  self.MOL_MONOMER,  self.MOL_DIMER1,  self.MOL_DIMER2
 		
 		self.lat 			= Lattice(dimX, dimY)
 		self.energyScale	= energyScale
+		self.rate			= rate
 		
 		self.monomerNum 	= monomerInitNum
 		self.dimer1Num 		= dimer1InitNum
@@ -74,15 +75,15 @@ class Experiment:
 		for n in range(self.monomerNum):
 			self.lat.addMolecule(Molecule(MOL_MONOMER, initX[n], initY[n], self.moleculeTemp1))
 		for n in range(self.dimer1Num):
-			self.lat.addMolecule(Molecule(MOL_DIMER,   initX[n], initY[n], self.moleculeTemp2))
+			self.lat.addMolecule(Molecule(MOL_DIMER1,   initX[n], initY[n], self.moleculeTemp2))
 		for n in range(self.dimer2Num):
-			self.lat.addMolecule(Molecule(MOL_DIMER,   initX[n], initY[n], self.moleculeTemp3))
+			self.lat.addMolecule(Molecule(MOL_DIMER2,   initX[n], initY[n], self.moleculeTemp3))
 		
 	def __initVars(self):	
 		ATOM_MONOMER, ATOM_DIMER1, ATOM_DIMER2, ATOM_SITE = \
 		self.ATOM_MONOMER, self.ATOM_DIMER1, self.ATOM_DIMER2, self.ATOM_SITE
 		
-		MOL_MONOMER, MOL_DIMER =  self.MOL_MONOMER,  self.MOL_DIMER
+		MOL_MONOMER, MOL_DIMER1, MOL_DIMER2 =  self.MOL_MONOMER,  self.MOL_DIMER1,  self.MOL_DIMER2
 
 		self.newDimerTemp = range(8)
 		self.newDimerTemp[0] = map(Atom.fromTuple, [\
@@ -140,7 +141,7 @@ class Experiment:
 		newDimerTemp = self.newDimerTemp
 		ATOM_MONOMER, ATOM_DIMER1, ATOM_DIMER2, ATOM_SITE = \
 			self.ATOM_MONOMER, self.ATOM_DIMER1, self.ATOM_DIMER2, self.ATOM_SITE
-		MOL_MONOMER, MOL_DIMER = self.MOL_MONOMER,  self.MOL_DIMER
+		MOL_MONOMER, MOL_DIMER1, MOL_DIMER2 =  self.MOL_MONOMER,  self.MOL_DIMER1,  self.MOL_DIMER2
 
 		
 		if outputFileName == None:
@@ -154,6 +155,8 @@ class Experiment:
 			img = imshow(self.colorMap(lat), interpolation='none')
 			ioff()
 		
+		newDimerNum = zeros((3,3), int)
+		
 		tMoveMol 		= zeros(simTime, int)
 		tMoveDir 		= zeros(simTime, int)
 		tMoveDis 		= zeros(simTime, int)
@@ -166,6 +169,7 @@ class Experiment:
 		reactMol 		= zeros(simTime, int)
 		reactDir 		= zeros(simTime, int)
 		reactAtom 		= zeros(simTime, int)
+		reactProb		= rand(simTime)
 		
 		degProb 		= rand(simTime)
 		
@@ -198,40 +202,41 @@ class Experiment:
 				else:
 					lat.rotateMoleculeCCWByIndex(rMoveMol[t], rMoveProb[t])
 			
-			# Pick one monomer atom and see if a dimer can be formed
-			molN = len(lat.atomList[ATOM_MONOMER]) + len(lat.atomList[ATOM_DIMER1])/2 + len(lat.atomList[ATOM_DIMER2])/2;
-			reactAtom[t] = randint(0, molN)
-			
-			if reactAtom[t] < len(lat.atomList[ATOM_MONOMER]):
-				ra = lat.atomList[ATOM_MONOMER][reactAtom[t]]
+			if reactProb[t] < self.rate:			
+				# Pick one monomer atom and see if a dimer can be formed
+				molN = len(lat.atomList[ATOM_MONOMER]) + len(lat.atomList[ATOM_DIMER1])/2 + len(lat.atomList[ATOM_DIMER2])/2;
+				reactAtom[t] = randint(0, molN)
+				
+				if reactAtom[t] < len(lat.atomList[ATOM_MONOMER]):
+					ra = lat.atomList[ATOM_MONOMER][reactAtom[t]]
 
-				rd = reactDir[t] = randint(0, 8)
+					rd = reactDir[t] = randint(0, 8)
+					
+					x2 = ra.x + reactDirMap[rd][0]
+					y2 = ra.y + reactDirMap[rd][1]
 				
-				x2 = ra.x + reactDirMap[rd][0]
-				y2 = ra.y + reactDirMap[rd][1]
-			
-				#anl = lat.getAtomNumAt(x2, y2)
-				
-				if 0 < lat.getDataXY(lat.atomNumMap[ATOM_MONOMER], x2, y2):
-					for ra2 in lat.getAtomListAt(x2, y2):
-						if ra2.type == ATOM_MONOMER:
-							# I-shaped dimer
-							if rd < 4:
-								lat.addMolecule(Molecule(MOL_DIMER, ra.x, ra.y, newDimerTemp[rd]))
-							# L-shaped dimer
-							else:
-								lat.addMolecule(Molecule(MOL_DIMER, ra2.x, ra.y, newDimerTemp[rd]))
-							
-							# Remove the involved monomers
-							for atom in [ra, ra2]:
-								rm = atom.parent
-								if rm.type == MOL_MONOMER:
-									lat.removeMolecule(rm)
+					#anl = lat.getAtomNumAt(x2, y2)
+					
+					if 0 < lat.getDataXY(lat.atomNumMap[ATOM_MONOMER], x2, y2):
+						for ra2 in lat.getAtomListAt(x2, y2):
+							if ra2.type == ATOM_MONOMER:
+								# I-shaped dimer
+								if rd < 4:
+									lat.addMolecule(Molecule(MOL_DIMER1, ra.x, ra.y, newDimerTemp[rd]))
+								# L-shaped dimer
 								else:
-									lat.raiseMolecule(rm)
-									atom.type = ATOM_SITE
-									lat.layMolecule(rm)							
-							break
+									lat.addMolecule(Molecule(MOL_DIMER2, ra2.x, ra.y, newDimerTemp[rd]))
+								newDimerNum[ra.parent.type, ra2.parent.type] = newDimerNum[ra.parent.type, ra2.parent.type] + 1
+								# Remove the involved monomers
+								for atom in [ra, ra2]:
+									rm = atom.parent
+									if rm.type == MOL_MONOMER:
+										lat.removeMolecule(rm)
+									else:
+										lat.raiseMolecule(rm)
+										atom.type = ATOM_SITE
+										lat.layMolecule(rm)							
+								break
 			
 			
 			reactMol[t] = randint(0, lat.moleculeNum)
@@ -241,7 +246,7 @@ class Experiment:
 			if rm.type == MOL_MONOMER:
 				if degProb[t] < self.monomerVanish:
 					lat.removeMolecule(rm)						
-			elif (rm.type == MOL_DIMER):
+			elif (rm.type == MOL_DIMER1 or rm.type == MOL_DIMER2):
 				# Death of dimer
 				if degProb[t] < self.dimerVanish:
 					for atom in rm.atomList:
@@ -286,6 +291,14 @@ class Experiment:
 					img.set_array(self.colorMap(lat))
 					draw()
 				if fileFlag:
+					file.write('# New Dimer Num Per Interval\n')
+					for mt1 in newDimerNum:
+						file.write('# ')
+						for mt2 in mt1:
+							file.write('{} '.format(mt2))
+						file.write('\n')
+					file.write('# \n')
+					newDimerNum = newDimerNum * 0;
 					for atomType in lat.atomNumMap:
 						for row in atomType:
 							for col in row:
@@ -306,6 +319,7 @@ if __name__ == '__main__':
 	parser.add_argument('-e', '--energy', dest="energyScale", action='store', type=float, default=1.)
 	parser.add_argument('-t', '--time', dest="simTime", action='store', type=int, default=1000)
 	parser.add_argument('-u', '--period', dest="outputPeriod", action='store', type=int, default=200)
+	parser.add_argument('-f', '--rate', dest="rate", action='store', type=float, default=1.)
 	parser.add_argument('-v', '--ma', dest="ma", action='store', type=float, default=0.)
 	parser.add_argument('-i', '--mv', dest="mv", action='store', type=float, default=0.)
 	parser.add_argument('-j', '--dv', dest="dv", action='store', type=float, default=0.)
@@ -321,7 +335,7 @@ if __name__ == '__main__':
 		import matplotlib.animation as animation
 		
 	experiment = Experiment(\
-		dimX=opt.size, dimY=opt.size, energyScale=opt.energyScale, \
+		dimX=opt.size, dimY=opt.size, energyScale=opt.energyScale, rate=opt.rate, \
 		monomerAppear=opt.ma, monomerVanish=opt.mv, dimerVanish=opt.dv, dimerBreak=opt.db, \
 		monomerInitNum=opt.nm, dimer1InitNum=opt.nd1, dimer2InitNum=opt.nd2)
 		

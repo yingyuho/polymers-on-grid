@@ -3,7 +3,7 @@ from numpy.fft import *
 
 colorScale = ( [
 	[0.20, 0.20, 0.20],\
-	[0.30, 0.00, 0.00],\
+	[0.40, 0.00, 0.00],\
 	[0.00, 0.30, 0.00],\
 	[0.00, 0.00, 0.00]] )
 	
@@ -11,9 +11,11 @@ def colorMap(atomNumMap):
 	return clip(tensordot(atomNumMap, colorScale, axes=([0,0])), 0, 1)
 	
 def readRow(file):
-	lst = map(int, file.readline().split())
+	line = file.readline()
+	while line.startswith("#"): line = file.readline()
+	lst = map(int, line.split())
 	return lst
-	
+		
 def readAtomType(file):
 	tbl = []
 	lst = readRow(file)
@@ -29,14 +31,33 @@ def readFrame(file):
 		frame.append(tbl)
 		tbl = readAtomType(file)
 	return frame
+	
+def readRowSharp(file):
+	line = file.readline()
+	while not line.startswith("#"): line = file.readline()
+	lst = map(int, line.lstrip('# ').split())
+	return lst
+
+def readNewDimerNum(file):
+	tbl = []
+	line = file.readline()
+	while not line.startswith("# New Dimer"):
+		if line == "": return tbl
+		line = file.readline()
+	lst = readRowSharp(file)
+	while len(lst) > 0:
+		tbl.append(lst)
+		lst = readRowSharp(file)
+	return tbl
 
 import argparse
 parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
 parser.add_argument('-i', dest="inFileName", action='store')
 parser.add_argument('-o', dest="outFileName", action='store')
-parser.add_argument('-f', dest='function', action='store')
+parser.add_argument('-f', dest='function', action='store', nargs='+')
 parser.add_argument('-t', dest='interval', action='store', type=int, default=200)
 opt = parser.parse_args()
+func = opt.function[0]
 
 ATOM_MONOMER, ATOM_DIMER1, ATOM_DIMER2, ATOM_SITE = 0, 1, 2, 3
 
@@ -48,7 +69,7 @@ else:
 	
 if outFlag:	outFile = open(opt.outFileName, 'w')
 
-if opt.function == 'replay':
+if func == 'replay':
 	import matplotlib.pyplot as plt
 	import matplotlib.animation as animation
 
@@ -68,7 +89,37 @@ if opt.function == 'replay':
 	ani = animation.FuncAnimation(fig, update, interval=opt.interval, blit=True, repeat=False)
 	plt.show()	
 	
-elif opt.function == 'count' and outFlag:
+elif func == 'coarse' and outFlag and len(opt.function) >= 2:
+	boxX = int(opt.function[1])
+	if len(opt.function) >= 3:
+		boxY = int(opt.function[2])
+	else:
+		boxY = boxX
+	
+	frame = array(readFrame(inFile))
+	aNum = frame.shape[0]
+	oldDimX, oldDimY = frame.shape[1], frame.shape[2]
+	newDimX, newDimY = oldDimX/boxX, oldDimY/boxY
+	
+	while len(frame) > 0:
+		newFrame = reshape(frame,(aNum,oldDimX,newDimY,boxY))
+		newFrame = sum(newFrame,3)
+		newFrame = transpose(newFrame,(0,2,1))
+		newFrame = reshape(newFrame,(aNum,newDimY,newDimX,boxX))
+		newFrame = sum(newFrame,3)
+		newFrame = transpose(newFrame,(0,2,1))
+		
+		for atomType in newFrame:
+			for row in atomType:
+				for col in row:
+					outFile.write('{} '.format(col))
+				outFile.write('\n')
+			outFile.write('\n')
+		outFile.write('\n')
+		
+		frame = array(readFrame(inFile))
+	
+elif func == 'count' and outFlag:
 	frame = array(readFrame(inFile))
 	while len(frame) > 0:
 		atomCount = frame.sum(2).sum(1)
@@ -77,10 +128,23 @@ elif opt.function == 'count' and outFlag:
 		outFile.write('\n')
 		frame = array(readFrame(inFile))
 		
-elif opt.function == 'scorr' and outFlag:
-	atomTypeA = ATOM_MONOMER
-	atomTypeB = ATOM_DIMER2
-	
+elif func == 'countrxn' and outFlag:
+	frame = array(readNewDimerNum(inFile))
+	frameSum = zeros(frame.shape, int)
+	while len(frame) > 0:
+		frameSum = frameSum + frame
+		frame = array(readNewDimerNum(inFile))
+		
+	for row in frameSum:
+		for col in row:
+			outFile.write('{} '.format(col))
+		outFile.write('\n')
+	outFile.write('\n')
+
+elif func == 'scorr' and outFlag:
+	#atomTypeA = ATOM_MONOMER
+	#atomTypeB = ATOM_DIMER2
+	atomTypeNum = 3
 	#frame = array(readFrame(inFile), float)
 	#frameSum = zeros(array(frame).shape, float)
 	#area = frameSum.shape[1] * frameSum.shape[2]
@@ -98,9 +162,9 @@ elif opt.function == 'scorr' and outFlag:
 	#sumMoment = float(real(ifft2( ftA * conj(ftB) )).round())
 	
 	inFile.seek(0)
-	frame = readFrame(inFile)
-	corrSum = zeros(array(frame[0]).shape)
-	area = corrSum.shape[0] * corrSum.shape[1]
+	frame = array(readFrame(inFile))
+	corrSum = zeros((atomTypeNum,atomTypeNum)+frame[0].shape)
+	area = corrSum.shape[2] * corrSum.shape[3]
 	totalTime = 0
 	
 #	for atomType in frameSum:
@@ -119,25 +183,32 @@ elif opt.function == 'scorr' and outFlag:
 	
 	while len(frame) > 0:
 		totalTime = totalTime + 1
-		frameA = array(frame[atomTypeA])
-		frameB = array(frame[atomTypeB])
-		frameA = frameA * area - sum(frameA)
-		frameB = frameB * area - sum(frameB)
-		ftA = fft2(frameA)
-		ftB = fft2(frameB)
-		corr = real(ifft2( ftA * conj(ftB) ))
+		for atomTypeA in range(atomTypeNum):
+			for atomTypeB in range(atomTypeNum):
+				frameA = frame[atomTypeA]
+				frameB = frame[atomTypeB]
+				frameA = frameA * area - sum(frameA)
+				frameB = frameB * area - sum(frameB)
+				ftA = fft2(frameA)
+				ftB = fft2(frameB)
+				corr = real(ifft2( ftA * conj(ftB) ))
+				corrSum[atomTypeA][atomTypeB] = corrSum[atomTypeA][atomTypeB] + corr
 		#corr = float(real(ifft2( ftA * conj(ftB) )).round())
-		corrSum = corrSum + corr		
-		frame = readFrame(inFile)
+		
+		frame = array(readFrame(inFile))
 
 	corrSum = 1. * corrSum / totalTime / area / area
 	
-	for row in corrSum:
-		for col in row:
-			outFile.write('{} '.format(col))
+	
+	for atomTypeA in corrSum:
+		for atomTypeB in atomTypeA:
+			for row in atomTypeB:
+				for col in row:
+					outFile.write('{} '.format(col))
+				outFile.write('\n')
+			outFile.write('\n')
 		outFile.write('\n')
 	outFile.write('\n')
-
 	
 inFile.close()
 if outFlag:	outFile.close()
