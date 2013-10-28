@@ -31,13 +31,22 @@ class Atom:
 
 class Molecule:
 
-	def __init__(self, type, x, y, atomList):
-		self.type = type;
+	def __init__(self, moltype, x, y, template):
+		self.type = moltype;
 		self.x = self.y = 0
 		self.atomList = []
+		if type(template) is list:
+			atomList = template
+		else:
+			atomList = template['atomList']
 		for atom in atomList:
 			self.atomList.append(Atom(atom.type, atom.x, atom.y, atom.copies).setParent(self))
+		try:
+			self.dir = template['dir']
+		except (AttributeError, TypeError):
+			self.dir = (0,0)
 		self.translate(x, y)
+		self.boundMonomer = 0
 		
 	def __repr__(self):
 		return 'Molecule(x=%r, y=%r, atomList=%r)' % (self.x, self.y, self.atomList)
@@ -45,10 +54,12 @@ class Molecule:
 	def rotateCW(self): 
 		"""Rotate each component atom clockwise"""
 		for atom in self.atomList: atom.rotateCW(self.x, self.y)
+		self.dir = (self.dir[1],-self.dir[0])
 		
 	def rotateCCW(self): 
 		"""Rotate each component atom counterclockwise"""
 		for atom in self.atomList: atom.rotateCCW(self.x, self.y)
+		self.dir = (-self.dir[1],self.dir[0])
 	
 	def translate(self, dx, dy):
 		"""Translate each component atom by (dx, dy)"""
@@ -81,7 +92,8 @@ class Lattice:
 		self.dimX, self.dimY = dimX, dimY
 		self.atomListMap = tuple([ tuple([ [] for y in range(dimY) ]) for x in range(dimX) ])
 		self.atomNumListMap = tuple([ tuple([ [] for y in range(dimY) ]) for x in range(dimX) ])
-		self.moleculeList = [];
+		self.moleculeList = self.QList();
+		#self.moleculeList = [];
 		self.atomList = [];
 		self.moleculeNum = 0;
 		

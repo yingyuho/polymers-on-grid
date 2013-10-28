@@ -130,16 +130,21 @@ elif func == 'count' and outFlag:
 		
 elif func == 'countrxn' and outFlag:
 	frame = array(readNewDimerNum(inFile))
-	frameSum = zeros(frame.shape, int)
+	#frameSum = zeros(frame.shape, int)
 	while len(frame) > 0:
-		frameSum = frameSum + frame
+		#frameSum = frameSum + frame
+		for row in frame:
+			for col in row:
+				outFile.write('{} '.format(col))
+			outFile.write('\n')
+		outFile.write('\n')
 		frame = array(readNewDimerNum(inFile))
 		
-	for row in frameSum:
-		for col in row:
-			outFile.write('{} '.format(col))
-		outFile.write('\n')
-	outFile.write('\n')
+	#for row in frameSum:
+	#	for col in row:
+	#		outFile.write('{} '.format(col))
+	#	outFile.write('\n')
+	#outFile.write('\n')
 
 elif func == 'scorr' and outFlag:
 	#atomTypeA = ATOM_MONOMER

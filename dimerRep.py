@@ -36,7 +36,7 @@ class Experiment:
 		(ATOM_SITE,		0,	0,	2)])
 	
 	def __init__(\
-			self, dimX, dimY, energyScale, rate, \
+			self, dimX, dimY, energyScale, rate1, rate2, cat, \
 			monomerAppear, monomerVanish, dimerVanish, dimerBreak, \
 			monomerInitNum, dimer1InitNum, dimer2InitNum):
 			
@@ -44,7 +44,9 @@ class Experiment:
 		
 		self.lat 			= Lattice(dimX, dimY)
 		self.energyScale	= energyScale
-		self.rate			= rate
+		self.rate1			= rate1
+		self.rate2			= rate2
+		self.cat			= cat
 		
 		self.monomerNum 	= monomerInitNum
 		self.dimer1Num 		= dimer1InitNum
@@ -59,9 +61,9 @@ class Experiment:
 		
 		self.lat.setAtomTypeNum(4)
 		self.lat.setEnergyMatrix(array([\
-			[ 1,  1,  1,  0],\
-			[ 1,  1,  1,  0],\
-			[ 1,  1,  1,  0],\
+			[ 2,  2,  2,  0],\
+			[ 2,  2,  2,  0],\
+			[ 2,  2,  2,  0],\
 			[ 0,  0,  0,  0]]) * self.energyScale)
 											
 		self.lat.bindingEnergy = -1.0 * self.energyScale;
@@ -185,7 +187,7 @@ class Experiment:
 			tMoveMol[t] = randint(0, lat.moleculeNum)
 			tMoveDir[t] = randint(0, 2)
 			tMoveDis[t] = randint(0, 2) * 2 - 1
-			tMoveProb[t] = rand()*9
+			tMoveProb[t] = rand()
 
 			dx = tMoveDis[t] * tMoveDir[t]
 			dy = tMoveDis[t] * (1 - tMoveDir[t])
@@ -194,7 +196,7 @@ class Experiment:
 			# Rotate one molecule
 			rMoveDir[t] = randint(0, 2)
 			rMoveMol[t] = randint(0, lat.moleculeNum)
-			rMoveProb[t] = rand()*9
+			rMoveProb[t] = rand()
 			
 			if lat.moleculeList[rMoveMol[t]] != MOL_MONOMER:
 				if rMoveDir[t] == 0:
@@ -202,15 +204,18 @@ class Experiment:
 				else:
 					lat.rotateMoleculeCCWByIndex(rMoveMol[t], rMoveProb[t])
 			
-			if reactProb[t] < self.rate:			
+			rd = reactDir[t] = randint(0, 8)
+			if rd < 4:
+				rate = self.rate1
+			else:
+				rate = self.rate2
+			if reactProb[t] < rate:			
 				# Pick one monomer atom and see if a dimer can be formed
 				molN = len(lat.atomList[ATOM_MONOMER]) + len(lat.atomList[ATOM_DIMER1])/2 + len(lat.atomList[ATOM_DIMER2])/2;
 				reactAtom[t] = randint(0, molN)
 				
 				if reactAtom[t] < len(lat.atomList[ATOM_MONOMER]):
 					ra = lat.atomList[ATOM_MONOMER][reactAtom[t]]
-
-					rd = reactDir[t] = randint(0, 8)
 					
 					x2 = ra.x + reactDirMap[rd][0]
 					y2 = ra.y + reactDirMap[rd][1]
@@ -219,7 +224,12 @@ class Experiment:
 					
 					if 0 < lat.getDataXY(lat.atomNumMap[ATOM_MONOMER], x2, y2):
 						for ra2 in lat.getAtomListAt(x2, y2):
-							if ra2.type == ATOM_MONOMER:
+							if ra.parent == ra2.parent:
+								speedup = 1
+							else:
+								speedup = 1/self.cat
+							if ra2.type == ATOM_MONOMER and reactProb[t] < \
+							rate * speedup:#*exp((ra.parent.boundMonomer+ra2.parent.boundMonomer)*lat.bindingEnergy):
 								# I-shaped dimer
 								if rd < 4:
 									lat.addMolecule(Molecule(MOL_DIMER1, ra.x, ra.y, newDimerTemp[rd]))
@@ -233,9 +243,10 @@ class Experiment:
 									if rm.type == MOL_MONOMER:
 										lat.removeMolecule(rm)
 									else:
+										rm.boundMonomer = rm.boundMonomer - 1
 										lat.raiseMolecule(rm)
 										atom.type = ATOM_SITE
-										lat.layMolecule(rm)							
+										lat.layMolecule(rm)										
 								break
 			
 			
@@ -248,14 +259,14 @@ class Experiment:
 					lat.removeMolecule(rm)						
 			elif (rm.type == MOL_DIMER1 or rm.type == MOL_DIMER2):
 				# Death of dimer
-				if degProb[t] < self.dimerVanish:
+				if degProb[t] < self.dimerVanish:#*exp(rm.boundMonomer*lat.bindingEnergy):
 					for atom in rm.atomList:
 						if atom.type == ATOM_MONOMER:
 							lat.addMolecule(Molecule(MOL_MONOMER, atom.x, atom.y, moleculeTemp1))
 					lat.removeMolecule(rm)
 					moleculeNum -= 1
 				# Degradation of dimer into monomers
-				elif degProb[t] > (1-self.dimerBreak):
+				elif degProb[t] > (1-self.dimerBreak):#*exp(rm.boundMonomer*lat.bindingEnergy)):
 					for atom in rm.atomList:
 						if atom.type != ATOM_SITE:
 							lat.addMolecule(Molecule(MOL_MONOMER, atom.x, atom.y, moleculeTemp1))
@@ -266,6 +277,7 @@ class Experiment:
 						if atom.type == ATOM_SITE:
 							aL1 = lat.getAtomListAt(atom.x, atom.y)
 							for atom1 in filter(lambda x: x.parent.type == MOL_MONOMER, aL1):
+								rm.boundMonomer = rm.boundMonomer + 1
 								lat.raiseMolecule(rm)
 								atom.type = ATOM_MONOMER
 								lat.layMolecule(rm)
@@ -274,6 +286,7 @@ class Experiment:
 						# Detach monomer from adsorption site of dimer
 						elif atom.type == ATOM_MONOMER:
 							if bindProb[t] < min(1,exp(atom.copies*lat.bindingEnergy)):
+								rm.boundMonomer = rm.boundMonomer - 1
 								lat.raiseMolecule(rm)
 								atom.type = ATOM_SITE
 								lat.layMolecule(rm)
@@ -319,7 +332,8 @@ if __name__ == '__main__':
 	parser.add_argument('-e', '--energy', dest="energyScale", action='store', type=float, default=1.)
 	parser.add_argument('-t', '--time', dest="simTime", action='store', type=int, default=1000)
 	parser.add_argument('-u', '--period', dest="outputPeriod", action='store', type=int, default=200)
-	parser.add_argument('-f', '--rate', dest="rate", action='store', type=float, default=1.)
+	parser.add_argument('-f', '--rate1', dest="rate1", action='store', type=float, default=1.)
+	parser.add_argument('-g', '--rate2', dest="rate2", action='store', type=float, default=-1.)
 	parser.add_argument('-v', '--ma', dest="ma", action='store', type=float, default=0.)
 	parser.add_argument('-i', '--mv', dest="mv", action='store', type=float, default=0.)
 	parser.add_argument('-j', '--dv', dest="dv", action='store', type=float, default=0.)
@@ -327,15 +341,18 @@ if __name__ == '__main__':
 	parser.add_argument('-l', '--nm', dest='nm', action='store', type=int, default=0)
 	parser.add_argument('-m', '--nd1', dest='nd1', action='store', type=int, default=0)
 	parser.add_argument('-n', '--nd2', dest='nd2', action='store', type=int, default=0)
+	parser.add_argument('-c', '--cat', dest='cat', action='store', type=float, default=1.)
 	
 	opt = parser.parse_args()
+	if opt.rate2 == -1.:
+		opt.rate2 = opt.rate1
 			
 	if opt.display == True:
 		from matplotlib.pyplot import *
 		import matplotlib.animation as animation
 		
 	experiment = Experiment(\
-		dimX=opt.size, dimY=opt.size, energyScale=opt.energyScale, rate=opt.rate, \
+		dimX=opt.size, dimY=opt.size, energyScale=opt.energyScale, rate1=opt.rate1, rate2=opt.rate2, cat=opt.cat, \
 		monomerAppear=opt.ma, monomerVanish=opt.mv, dimerVanish=opt.dv, dimerBreak=opt.db, \
 		monomerInitNum=opt.nm, dimer1InitNum=opt.nd1, dimer2InitNum=opt.nd2)
 		
